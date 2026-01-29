@@ -8,8 +8,8 @@ metadata:
 context: fork
 agent: general-purpose
 disable-model-invocation: true
-argument-hint: [base-branch] [--validate] [--all] [--quick] [--run-checks] [--guidelines <paths...>]
-allowed-tools: Read, Grep, Glob, Bash(git *), Task
+argument-hint: "[base-branch] [--validate] [--all] [--quick] [--run-checks] [--guidelines <paths...>]"
+allowed-tools: "Read, Grep, Glob, Bash(git *), Task"
 ---
 
 # Pre-PR Scan
