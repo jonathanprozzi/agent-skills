@@ -8,8 +8,8 @@ metadata:
 context: fork
 agent: general-purpose
 disable-model-invocation: true
-argument-hint: "[base-branch] [--validate] [--all] [--quick] [--run-checks] [--guidelines <paths...>]"
-allowed-tools: "Read, Grep, Glob, Bash(git *), Task"
+argument-hint: "[base-branch] [--validate] [--all] [--quick] [--run-checks] [--output <path>] [--guidelines <paths...>]"
+allowed-tools: "Read, Grep, Glob, Bash(git *), Task, Write"
 ---
 
 # Pre-PR Scan
@@ -50,6 +50,7 @@ Parse the arguments passed to this skill. Set these variables based on what's pr
 | `--all` | `SHOW_ALL=true` | Include issues below 80% confidence |
 | `--quick` | `QUICK_MODE=true` | Use Haiku for all agents (fastest) |
 | `--run-checks` | `RUN_CHECKS=true` | Run lint/test/build commands (like CI) |
+| `--output <path>` | `OUTPUT_PATH` | Write report to file (in addition to stdout) |
 | `--guidelines <paths...>` | `GUIDELINES_PATHS` | Explicit CLAUDE.md file paths |
 
 **Default behavior** (no flags): Static analysis only, ≥80% confidence threshold, no validation pass, auto-discover CLAUDE.md.
@@ -59,6 +60,7 @@ Parse the arguments passed to this skill. Set these variables based on what's pr
 - `--quick` alone: Fast scan, Haiku everywhere (~80-100k tokens)
 - `--all` alone: See speculative issues for awareness
 - `--quick --validate`: Not recommended (defeats purpose of quick)
+- `--output ./scan-results.md`: Save report to file for later reference
 - `--guidelines ./CLAUDE.md ./packages/core/CLAUDE.md`: Explicit guideline files (monorepos)
 
 ---
@@ -451,3 +453,12 @@ Every issue MUST include a confidence score:
 2. If Parallel: spawn 4 agents using Task tool, aggregate results
 3. If Sequential: run all 4 phases yourself
 4. Output findings in the format above, sorted by severity then confidence
+5. **If `--output <path>` flag**: Write the complete report to the specified file using the Write tool
+
+### Output to File
+
+If `OUTPUT_PATH` is set:
+- Write the **complete markdown report** to the specified path
+- Use the Write tool (not Bash)
+- Include all sections: header, issues, summary
+- The report is written **in addition to** stdout output (user sees both)

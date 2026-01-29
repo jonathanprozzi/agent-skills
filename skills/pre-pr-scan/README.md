@@ -136,6 +136,7 @@ The skill is compatible with OpenAI Codex (same Agent Skills spec):
 /pre-pr-scan --all               # Include speculative issues (60-79% confidence)
 /pre-pr-scan --quick             # Fast mode (Haiku for all agents)
 /pre-pr-scan --run-checks        # Run lint/test/build like CI
+/pre-pr-scan --output ./scan.md  # Save report to file
 /pre-pr-scan develop --validate  # Combine base branch + flag
 
 # Explicit CLAUDE.md paths (monorepos)
@@ -153,6 +154,7 @@ Control the cost/precision trade-off:
 | `--all` | Include 60-79% confidence issues | ~same |
 | `--quick` | Use Haiku for all agents | ~80-100k |
 | `--run-checks` | Run lint/test/build commands (like CI) | +varies |
+| `--output <path>` | Write report to specified file | ~same |
 | `--guidelines <paths...>` | Use explicit CLAUDE.md file paths | ~same |
 
 **When to use each:**
@@ -161,6 +163,7 @@ Control the cost/precision trade-off:
 - **`--all`** - Exploratory, see what the scan noticed but wasn't confident about
 - **`--quick`** - Fast feedback during development, not for final scan
 - **`--run-checks`** - Match what CI will find (runs lint/test/build commands)
+- **`--output`** - Save report for documentation, PR descriptions, or later reference
 - **`--guidelines`** - Monorepos with multiple CLAUDE.md files, or non-standard locations
 
 ## How it works
@@ -233,8 +236,10 @@ The skill uses these frontmatter settings:
 ```yaml
 context: fork          # Runs in isolated subagent
 agent: general-purpose # Has Task tool for parallel agents
-allowed-tools: Read, Grep, Glob, Bash(git *), Task
+allowed-tools: Read, Grep, Glob, Bash(git *), Task, Write
 ```
+
+Note: `Write` is needed for the `--output` flag to save reports to files.
 
 ## Confidence threshold
 
