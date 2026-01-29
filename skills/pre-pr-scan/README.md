@@ -11,16 +11,80 @@ Runs a comprehensive scan of your changes against:
 - **Logic bugs** - Null access, race conditions, missing error handling
 - **Commit hygiene** - Flip-flopping, incomplete changes, contradictions
 
+## Workflow
+
+Run `/pre-pr-scan` **before** creating your PR:
+
+```
+1. Finish your changes
+2. Run /pre-pr-scan locally (subsidized via Max plan)
+3. Fix any issues found
+4. Create PR
+5. GitHub bot sees clean code (saves org API credits)
+```
+
+**Without the skill:**
+```
+PR created → Bot finds 5 issues → Fix → Push → Bot re-scans →
+Finds 2 more → Fix → Push → Bot re-scans → Clean
+= 3 full scans × API cost
+```
+
+**With the skill:**
+```
+Run locally (subsidized) → Fix 5 issues → PR created →
+Bot finds 0-1 issues → Done
+= 1 full scan × API cost
+```
+
+Each prevented iteration saves a full PR re-scan.
+
 ## Why use it
 
-Save API credits by catching issues locally before the GitHub PR review bot runs.
+**Shift-left approach** - Catch issues earlier in the dev cycle when they're cheaper to fix.
 
-**Complements the GitHub bot** - The official Anthropic code-review plugin explicitly excludes general security issues (by design). This skill catches:
-- Security vulnerabilities (OWASP, Web3) that the bot skips
-- Commit history issues the bot doesn't analyze
+**Complements the GitHub bot** - The official Anthropic code-review plugin explicitly excludes general security issues (by design). From the source:
+
+> "Do NOT flag: General code quality concerns (e.g., lack of test coverage, **general security issues**) unless explicitly required in CLAUDE.md"
+
+This skill catches what the bot skips:
+- Security vulnerabilities (OWASP, Web3) - **explicitly excluded** by bot
+- Commit history issues - bot doesn't analyze
 - Everything the bot catches (CI failures, CLAUDE.md compliance)
 
 **Cost efficient** - Run locally on your Max plan (subsidized) instead of org API credits.
+
+### Cost savings model
+
+| Context | Token Cost |
+|---------|------------|
+| GitHub Action | Real $ per token (org pays) |
+| Claude Code Max | Subsidized (~$100-200/mo subscription) |
+
+**Example (real org data):**
+- GitHub Action API cost: ~$300/month
+- Peak days: $70-80/day during active PR periods
+
+**If devs run `/pre-pr-scan` locally first:**
+- Catch issues BEFORE creating PR (subsidized)
+- Fewer issues for GitHub bot to find
+- Fewer PR iterations (each push re-triggers the bot)
+- Potential savings: 20-50% of monthly API costs
+
+The skill pays for itself if it prevents even a few PR iterations per month.
+
+### Comparison: This skill vs GitHub bot
+
+| Aspect | pre-pr-scan | GitHub Bot |
+|--------|-------------|------------|
+| **When** | Before PR (shift-left) | After PR created |
+| **Cost** | Subsidized (Max plan) | Org API credits |
+| **Security** | Always scans | Excluded unless in CLAUDE.md |
+| **History analysis** | Yes | No |
+| **CLAUDE.md** | Yes | Yes (2 redundant agents) |
+| **CI failures** | Yes | Yes (primary focus) |
+
+**Bottom line:** Run both. This skill catches issues earlier and covers security the bot explicitly skips.
 
 ## Installation
 
@@ -46,6 +110,18 @@ cp SKILL.md .claude/skills/pre-pr-scan/
 
 Anyone who clones the repo will have the skill available.
 
+### Codex installation
+
+The skill is compatible with OpenAI Codex (same Agent Skills spec):
+
+```bash
+~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py \
+  --repo jonathanprozzi/agent-skills \
+  --path skills/pre-pr-scan
+```
+
+**Note**: Claude Code extensions (`context: fork`, `agent: general-purpose`) are ignored by Codex. The core scan logic works, but invocation differs.
+
 ## Usage
 
 ```bash
@@ -59,6 +135,7 @@ Anyone who clones the repo will have the skill available.
 /pre-pr-scan --validate          # Add HIGH issue validation pass
 /pre-pr-scan --all               # Include speculative issues (60-79% confidence)
 /pre-pr-scan --quick             # Fast mode (Haiku for all agents)
+/pre-pr-scan --run-checks        # Run lint/test/build like CI
 /pre-pr-scan develop --validate  # Combine base branch + flag
 
 # Explicit CLAUDE.md paths (monorepos)
@@ -71,17 +148,19 @@ Control the cost/precision trade-off:
 
 | Flag | Effect | Token Impact |
 |------|--------|--------------|
-| (default) | ≥80% confidence, no validation | ~170-190k |
+| (default) | Static analysis, ≥80% confidence, no validation | ~170-190k |
 | `--validate` | Spawn validators for each HIGH issue | +100-120k |
 | `--all` | Include 60-79% confidence issues | ~same |
 | `--quick` | Use Haiku for all agents | ~80-100k |
+| `--run-checks` | Run lint/test/build commands (like CI) | +varies |
 | `--guidelines <paths...>` | Use explicit CLAUDE.md file paths | ~same |
 
 **When to use each:**
-- **Default** - Most scans, good balance of coverage and cost
+- **Default** - Most scans, good balance of coverage and cost (static analysis only)
 - **`--validate`** - Pre-merge on critical branches, worth the extra tokens for 80% precision
 - **`--all`** - Exploratory, see what the scan noticed but wasn't confident about
 - **`--quick`** - Fast feedback during development, not for final scan
+- **`--run-checks`** - Match what CI will find (runs lint/test/build commands)
 - **`--guidelines`** - Monorepos with multiple CLAUDE.md files, or non-standard locations
 
 ## How it works
@@ -165,6 +244,29 @@ allowed-tools: Read, Grep, Glob, Bash(git *), Task
 - Issues linters would catch
 
 **With `--all`**: Includes 60-79% issues marked as "SPECULATIVE" for awareness.
+
+## Validation
+
+Tested against real PRs and controlled scenarios:
+
+| Test | Size | Result |
+|------|------|--------|
+| PR 497 | Small | Matched GitHub bot (3 issues) |
+| PR 495 | Small | Matched + found 1 additional |
+| PR 493 | Small | Correctly found no issues |
+| PR 440 | 12k lines, 43 files | 19 issues (parallel mode) |
+| Controlled test | 16 files, 15 planted issues | Found all + bonus discoveries |
+
+**HIGH issue validation accuracy:** 80% precision (4/5 confirmed in PR 440 test)
+
+**What it catches that GitHub bot misses:**
+
+| Category | This Skill | GitHub Bot |
+|----------|------------|------------|
+| Security (OWASP) | Unsafe JSON parsing, injection | Excluded by design |
+| Security (Web3) | Unchecksummed addresses | Excluded by design |
+| Logic bugs | Missing deps, null access | Some coverage |
+| Commit hygiene | Flip-flopping, incomplete changes | Not analyzed |
 
 ## Related
 
