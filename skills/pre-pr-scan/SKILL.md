@@ -8,7 +8,7 @@ metadata:
 context: fork
 agent: general-purpose
 disable-model-invocation: true
-argument-hint: [base-branch] [--validate] [--all] [--quick] [--guidelines <paths...>]
+argument-hint: [base-branch] [--validate] [--all] [--quick] [--run-checks] [--guidelines <paths...>]
 allowed-tools: Read, Grep, Glob, Bash(git *), Task
 ---
 
@@ -16,19 +16,21 @@ allowed-tools: Read, Grep, Glob, Bash(git *), Task
 
 You are performing a pre-PR compliance and security scan. Your goal is to catch issues BEFORE a pull request is created, mimicking what the Claude PR review bot would flag.
 
+**IMPORTANT: Static analysis by default.** Do NOT run tests, linters, or build commands unless `--run-checks` flag is provided. Running tests is the user's responsibility. Your job is to analyze code and diffs to identify potential issues - not to execute anything.
+
+If `--run-checks` is provided, run the project's lint, test, and build commands (matching what CI would run) and include results in the report.
+
 ## Dynamic Context
 
 ### Changed Files
 !`git diff --name-only main...HEAD 2>/dev/null || git diff --name-only HEAD~5`
 
 ### Diff Stats
-!`DIFF=$(git diff main...HEAD 2>/dev/null || git diff HEAD~5); LINES=$(echo "$DIFF" | wc -l | tr -d ' '); FILES=$(git diff --name-only main...HEAD 2>/dev/null | wc -l | tr -d ' '); echo "Lines: $LINES | Files: $FILES"`
+!`git diff --stat main...HEAD 2>/dev/null || git diff --stat HEAD~5`
 
-### Diff Content
-!`DIFF=$(git diff main...HEAD 2>/dev/null || git diff HEAD~5); LINES=$(echo "$DIFF" | wc -l); if [ "$LINES" -lt 1000 ]; then echo "$DIFF"; else echo "Diff is $LINES lines (threshold: 1000). Large PR mode will be used."; fi`
+**Note on context:** The agent will fetch the full diff and locate CLAUDE.md files during execution. If the diff is large (>1000 lines), parallel mode will be used automatically.
 
-### Project Guidelines
-!`find . -name "CLAUDE.md" -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null | head -5 | xargs cat 2>/dev/null || echo "No CLAUDE.md found"`
+**To find project guidelines**, look for CLAUDE.md in the repo root and subdirectories. Read any found guidelines before scanning.
 
 **Note**: If `--guidelines <paths...>` is provided, read those files instead of auto-discovering. Example:
 ```bash
@@ -47,9 +49,10 @@ Parse the arguments passed to this skill. Set these variables based on what's pr
 | `--validate` | `VALIDATE_HIGH=true` | Run validation pass on HIGH issues |
 | `--all` | `SHOW_ALL=true` | Include issues below 80% confidence |
 | `--quick` | `QUICK_MODE=true` | Use Haiku for all agents (fastest) |
+| `--run-checks` | `RUN_CHECKS=true` | Run lint/test/build commands (like CI) |
 | `--guidelines <paths...>` | `GUIDELINES_PATHS` | Explicit CLAUDE.md file paths |
 
-**Default behavior** (no flags): ≥80% confidence threshold, no validation pass, auto-discover CLAUDE.md.
+**Default behavior** (no flags): Static analysis only, ≥80% confidence threshold, no validation pass, auto-discover CLAUDE.md.
 
 **Flag combinations:**
 - `--validate` alone: Full scan + validation (~300k tokens, 80% precision on HIGH)
@@ -73,15 +76,17 @@ This makes the skill portable to any repo, even without project-specific guideli
 
 ## Mode Selection
 
-Based on the **Diff Stats** above, select the appropriate mode:
+Based on the **Diff Stats** above (look at the summary line showing files changed and insertions/deletions), select the appropriate mode:
 
-### Small PR Mode (< 1000 lines AND < 15 files)
+### Small PR Mode (< 1000 total changes AND < 15 files)
 Run the scan sequentially as a single agent. Skip to **Sequential Scan Process** below.
 
-### Large PR Mode (≥ 1000 lines OR ≥ 15 files)
+### Large PR Mode (≥ 1000 total changes OR ≥ 15 files)
 Spawn 4 parallel agents with **partitioned responsibilities** (no overlap). Follow **Parallel Scan Process** below.
 
 **Token efficiency**: Each agent analyzes the diff first, only reading max 5 full files. This prevents duplicate file reads across agents.
+
+**To get the full diff for analysis**, run: `git diff main...HEAD` (or `git diff HEAD~5` if no main branch).
 
 ---
 
