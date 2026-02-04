@@ -7,6 +7,7 @@ Agent skills for Claude Code and compatible AI agents.
 | Skill | Description | Install |
 |-------|-------------|---------|
 | [pre-pr-scan](./skills/pre-pr-scan/) | Pre-PR compliance and security scan | `npx skills add jonathanprozzi/agent-skills --skill pre-pr-scan` |
+| [insights-archive](./skills/insights-archive/) | Archive /insights reports for historical tracking | `npx skills add jonathanprozzi/agent-skills --skill insights-archive` |
 
 ## Installation
 
