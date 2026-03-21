@@ -8,23 +8,7 @@ Archive Claude Code `/insights` reports for historical tracking.
 npx skills add jonathanprozzi/agent-skills --skill insights-archive
 ```
 
-## Prerequisites
-
-This skill requires the `insights-archive` shell script. Install via:
-
-**Option A: jonathanprozzi/dotfiles**
-```bash
-# If using the dotfiles repo, the script is at bin/insights-archive
-# Ensure ~/Documents/projects/web-projects/dotfiles/bin is in your PATH
-```
-
-**Option B: Standalone install**
-```bash
-mkdir -p ~/.local/bin
-curl -o ~/.local/bin/insights-archive \
-  https://raw.githubusercontent.com/jonathanprozzi/dotfiles/main/bin/insights-archive
-chmod +x ~/.local/bin/insights-archive
-```
+No external dependencies required — the skill is fully self-contained.
 
 ## Usage
 
